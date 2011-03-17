@@ -33,42 +33,91 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.preference.PreferenceManager;
 import android.util.Log;
+import android.view.KeyEvent;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.View.OnClickListener;
+import android.view.View.OnKeyListener;
 import android.widget.AdapterView;
-import android.widget.AdapterView.OnItemClickListener;
+import android.widget.EditText;
 import android.widget.ListView;
+import android.widget.TextView;
 import android.widget.Toast;
+import android.widget.AdapterView.OnItemClickListener;
 
 import com.cloudkick.exceptions.EmptyCredentialsException;
 
+
 public class DashboardActivity extends Activity implements OnItemClickListener {
+	private static final String DEFAULT_QUERY_KEY = "defaultQuery";
+	private static final String ACTIVE_QUERY_KEY = "activeQuery";
 	private static final String TAG = "DashboardActivity";
 	private static final int SETTINGS_ACTIVITY_ID = 0;
 	private static final int LOGIN_ACTIVITY_ID = 1;
 	private static final int refreshRate = 30;
 	private CloudkickAPI api;
 	private ProgressDialog progress;
-	private ListView dashboard;
+	private ListView dashboardView;
+	private EditText queryEditText;
+	private TextView queryTextView;
 	private NodesAdapter adapter;
 	private boolean haveNodes = false;
 	private boolean isRunning = false;
 	private final ArrayList<Node> nodes = new ArrayList<Node>();
 	private final Handler reloadHandler = new Handler();
-
+	private String activeQuery = "";
+	private boolean isEditing = false;
 	@Override
-	public void onCreate(Bundle savedInstanceState)
+	public void onCreate(Bundle sis)
 	{
-		super.onCreate(savedInstanceState);
+		super.onCreate(sis);
 		PreferenceManager.setDefaultValues(this, R.xml.preferences, false);
-		dashboard = new ListView(this);
+		if(sis!=null && sis.containsKey(ACTIVE_QUERY_KEY)){
+			activeQuery=sis.getString(ACTIVE_QUERY_KEY);
+		}else{
+			activeQuery = PreferenceManager.getDefaultSharedPreferences(this).getString(DEFAULT_QUERY_KEY, "");
+		}
+		setContentView(R.layout.dashboard);
+		queryEditText = (EditText) findViewById(R.id.queryEditText);
+		queryEditText.setOnKeyListener(
+        		new OnKeyListener() {
+					public boolean onKey(View v, int keyCode, KeyEvent event) {
+						if(event.getAction() == KeyEvent.ACTION_DOWN){
+							if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER){
+								activeQuery = queryEditText.getText().toString();
+								queryTextView.setText(activeQuery);
+								cancelEdit();
+								reloadAPI();
+								return true;
+							}else if(keyCode == KeyEvent.KEYCODE_BACK){
+								cancelEdit();
+								return true;
+							}
+						}
+						return false;
+					}
+        			
+        		}
+        );
+		queryTextView = (TextView) findViewById(R.id.queryTextView);
+		queryTextView.setOnClickListener(
+			new OnClickListener(){
+				public void onClick(View v) {
+					if(!isEditing){
+						editQuery();
+					}
+				}
+				
+			}
+		);
+		queryTextView.setText(activeQuery);
+	    dashboardView = (ListView) findViewById(R.id.dashboardListView) ;
 		adapter = new NodesAdapter(this, R.layout.node_item, nodes);
-		dashboard.setAdapter(adapter);
-		dashboard.setOnItemClickListener(this);
-		dashboard.setBackgroundColor(Color.WHITE);
-		setContentView(dashboard);
+		dashboardView.setAdapter(adapter);
+		dashboardView.setOnItemClickListener(this);
+		dashboardView.setBackgroundColor(Color.WHITE);
 		reloadAPI();
 	}
 
@@ -109,7 +158,7 @@ public class DashboardActivity extends Activity implements OnItemClickListener {
 	@Override
 	public void onConfigurationChanged(Configuration newConfig) {
 		super.onConfigurationChanged(newConfig);
-		setContentView(dashboard);
+		setContentView(R.layout.dashboard);
 	}
 
 	@Override
@@ -166,13 +215,16 @@ public class DashboardActivity extends Activity implements OnItemClickListener {
 			if (!haveNodes) {
 				progress = ProgressDialog.show(this, "", "Loading Nodes...", true);
 			}
-			new NodeUpdater().execute();
+			String[] queries = {activeQuery};
+			new NodeUpdater().execute(queries);
 		}
 	}
 
 	private void reloadAPI() {
+		Log.d(DashboardActivity.class.getName(), "REALOADING API");
 		try {
 			api = new CloudkickAPI(this);
+			Log.d(DashboardActivity.class.getName(), "new cloudkick api created");
 			haveNodes = false;
 		}
 		catch (EmptyCredentialsException e) {
@@ -182,13 +234,29 @@ public class DashboardActivity extends Activity implements OnItemClickListener {
 		}
 	}
 
-	private class NodeUpdater extends AsyncTask<Void, Void, ArrayList<Node>> {
+    private void editQuery(){
+    	queryEditText.setText(activeQuery);
+    	queryEditText.setVisibility(View.VISIBLE);
+    	queryEditText.requestFocus();
+    	isEditing = true;
+    }
+    
+    private void cancelEdit(){
+    	isEditing = false;
+    	queryEditText.setVisibility(View.GONE);
+    }
+    
+	private class NodeUpdater extends AsyncTask<String, Void, ArrayList<Node>> {
 		private Exception e = null;
 
 		@Override
-		protected ArrayList<Node> doInBackground(Void...voids) {
+		protected ArrayList<Node> doInBackground(String...queries) {
+			ArrayList<Node> results = new ArrayList<Node>();
 			try {
-				return api.getNodes();
+					for(String query: queries){
+						results.addAll(api.queryNodes(query));
+					}
+					return results;
 			}
 			catch (Exception e) {
 				this.e = e;

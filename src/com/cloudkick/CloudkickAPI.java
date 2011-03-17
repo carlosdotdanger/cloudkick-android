@@ -115,7 +115,13 @@ public class CloudkickAPI {
 	}
 
 	public ArrayList<Node> getNodes() throws BadCredentialsException, OAuthException, IOException, JSONException {
-		String body = doRequest("/query/nodes");
+		return queryNodes(null);
+	}
+
+	
+	public ArrayList<Node> queryNodes(String query) throws BadCredentialsException, OAuthException, IOException, JSONException {
+		Log.i(TAG, query);
+		String body = doRequest("/query/nodes"+ ((query == null || query.length() < 1)?"":"?query=" + query) );
 		ArrayList<Node> nodes = new ArrayList<Node>();
 		JSONArray rawNodes = new JSONArray(body);
 		int rawCount = rawNodes.length();

@@ -42,4 +42,11 @@
 			android:numeric="integer"
 			android:defaultValue="22" />
 	</PreferenceCategory>
+	<PreferenceCategory android:title="Default Query">
+		<EditTextPreference
+			android:name="Default Query"
+ 			android:summary="Set a default query to use on startup."
+ 			android:title="Query"
+ 			android:key="defaultQuery" />
+	</PreferenceCategory>	
 </PreferenceScreen>

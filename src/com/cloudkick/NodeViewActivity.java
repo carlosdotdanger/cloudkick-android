@@ -366,7 +366,7 @@ public class NodeViewActivity extends Activity {
 		}
 	}
 
-	private OnItemClickListener checkClickListener = new OnItemClickListener() {
+	private final OnItemClickListener checkClickListener = new OnItemClickListener() {
 		public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 			CKListItem item = checks.get(position);
 			if (item instanceof Check) {
