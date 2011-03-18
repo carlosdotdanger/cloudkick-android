@@ -159,6 +159,45 @@ public class DashboardActivity extends Activity implements OnItemClickListener {
 	public void onConfigurationChanged(Configuration newConfig) {
 		super.onConfigurationChanged(newConfig);
 		setContentView(R.layout.dashboard);
+		queryEditText = (EditText) findViewById(R.id.queryEditText);
+		queryEditText.setOnKeyListener(
+        		new OnKeyListener() {
+					public boolean onKey(View v, int keyCode, KeyEvent event) {
+						if(event.getAction() == KeyEvent.ACTION_DOWN){
+							if(keyCode == KeyEvent.KEYCODE_DPAD_CENTER || keyCode == KeyEvent.KEYCODE_ENTER){
+								activeQuery = queryEditText.getText().toString();
+								queryTextView.setText(activeQuery);
+								cancelEdit();
+								reloadAPI();
+								return true;
+							}else if(keyCode == KeyEvent.KEYCODE_BACK){
+								cancelEdit();
+								return true;
+							}
+						}
+						return false;
+					}
+        			
+        		}
+        );
+		queryTextView = (TextView) findViewById(R.id.queryTextView);
+		queryTextView.setOnClickListener(
+			new OnClickListener(){
+				public void onClick(View v) {
+					if(!isEditing){
+						editQuery();
+					}
+				}
+				
+			}
+		);
+		queryTextView.setText(activeQuery);
+	    dashboardView = (ListView) findViewById(R.id.dashboardListView) ;
+		adapter = new NodesAdapter(this, R.layout.node_item, nodes);
+		dashboardView.setAdapter(adapter);
+		dashboardView.setOnItemClickListener(this);
+		dashboardView.setBackgroundColor(Color.WHITE);
+		reloadAPI();
 	}
 
 	@Override
